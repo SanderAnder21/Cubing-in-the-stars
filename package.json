@@ -7,7 +7,9 @@
     "test": "node --test scripts/test-store.mjs",
     "test:scrambles": "node scripts/test-scrambles.mjs",
     "test:validity": "node scripts/test-validity.mjs",
-    "test:store": "node --test scripts/test-store.mjs"
+    "test:store": "node --test scripts/test-store.mjs",
+    "build": "node build.mjs",
+    "serve": "node build.mjs --serve"
   },
   "keywords": [],
   "author": "",
