@@ -2,11 +2,22 @@
 // Flujo: mantener 0.3 s -> listo -> soltar = arranca; cualquier toque/tecla = para.
 // Con inspeccion: un toque corto la inicia (15 s: +2 de 15 a 17 s, DNF despues de 17 s).
 
+const two = (n) => String(n).padStart(2, "0");
+function clock(cs) {
+  const sec = Math.floor(cs / 100), c = cs % 100;
+  return sec < 60 ? `${sec},${two(c)}` : `${Math.floor(sec / 60)}:${two(sec % 60)},${two(c)}`;
+}
+// Un solve: 2 decimales con coma, truncado a centesimas (12,34 / 1:05,32).
 export function fmt(ms) {
   if (ms === Infinity) return "DNF";
-  const s = ms / 1000;
-  if (s < 60) return s.toFixed(2);
-  return `${Math.floor(s / 60)}:${(s % 60).toFixed(2).padStart(5, "0")}`;
+  if (ms === null || ms === undefined) return "—";
+  return clock(Math.floor(ms / 10));
+}
+// Un promedio: igual, pero redondeado.
+export function fmtAvg(ms) {
+  if (ms === Infinity) return "DNF";
+  if (ms === null || ms === undefined) return "—";
+  return clock(Math.round(ms / 10));
 }
 
 export function createTimer({ pad, display, isInspection, isActive, onDone, onState }) {

@@ -33,6 +33,7 @@ const need = (cond, msg) => {
 
 const nameKey = (s) => s.trim().toLocaleLowerCase("es");
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 // ---------- Validadores (para crear y para importar) ----------
 
@@ -49,6 +50,7 @@ function cleanCube(r) {
     eventId: r.eventId,
     notes: typeof r.notes === "string" ? r.notes.slice(0, 500) : "",
     lubedAt: typeof r.lubedAt === "string" && DATE_RE.test(r.lubedAt) ? r.lubedAt : null,
+    color: HEX_RE.test(r.color ?? "") ? r.color : null,
     active: r.active !== false,
     createdAt: isNum(r.createdAt) ? r.createdAt : 0,
     retiredAt: isNum(r.retiredAt) ? r.retiredAt : null,
@@ -68,7 +70,7 @@ function cleanMode(r) {
 
 function cleanEvent(r) {
   if (!isStr(r?.id) || !r.id.startsWith("custom:") || !isStr(r.name?.trim?.(), 40)) return null;
-  return { id: r.id, name: r.name.trim(), group: "custom", cubingId: null, custom: true };
+  return { id: r.id, name: r.name.trim(), group: "custom", cubingId: null, custom: true, hidden: r.hidden === true };
 }
 
 function cleanSolve(r) {
@@ -155,6 +157,7 @@ export async function createStore(adapter = createMemoryAdapter(), { now = () =>
   // ----- Eventos -----
 
   const allEvents = () => [...EVENTS, ...data.events.values()];
+  const eventHidden = (id) => data.events.get(id)?.hidden === true;
   const getEvent = (id) => allEvents().find((e) => e.id === id) ?? null;
   const eventOrder = (id) => allEvents().findIndex((e) => e.id === id);
 
@@ -169,20 +172,42 @@ export async function createStore(adapter = createMemoryAdapter(), { now = () =>
     return save("events", cleanEvent({ id: uid("custom:ev"), name }));
   }
 
+  const customEvent = (id) => {
+    const e = data.events.get(id);
+    need(e, "Los tipos de fabrica no se pueden editar ni quitar");
+    return e;
+  };
+
+  async function renameCustomEvent(id, name) {
+    const e = customEvent(id);
+    name = String(name ?? "").trim();
+    need(name && name.length <= 40, "Nombre invalido (max. 40)");
+    need(!allEvents().some((x) => x.id !== id && nameKey(x.name) === nameKey(name)), `Ya existe un tipo llamado "${name}"`);
+    return save("events", { ...e, name });
+  }
+  // "Quitar" un tipo = ocultarlo. Sus cubos y solves se conservan y se pueden volver a mostrar.
+  const hideCustomEvent = async (id) => save("events", { ...customEvent(id), hidden: true });
+  const restoreCustomEvent = async (id) => save("events", { ...customEvent(id), hidden: false });
+
   // ----- Cubos -----
 
   const cubeNameTaken = (name, exceptId = null) =>
     [...data.cubes.values()].some((c) => c.active && c.id !== exceptId && nameKey(c.name) === nameKey(name));
 
+  function checkColor(v) {
+    need(v === null || HEX_RE.test(v), "Color invalido (usa #RRGGBB)");
+  }
+
   function checkLubed(v) {
     need(v === null || (typeof v === "string" && DATE_RE.test(v)), "Fecha de lubricante invalida (AAAA-MM-DD)");
   }
 
-  async function addCube({ name, eventId, notes = "", lubedAt = null }) {
+  async function addCube({ name, eventId, notes = "", lubedAt = null, color = null }) {
     name = String(name ?? "").trim();
     need(name, "El cubo necesita un nombre");
     need(name.length <= 60, "Nombre demasiado largo (max. 60)");
-    need(getEvent(eventId), "Tipo de cubo desconocido");
+    need(getEvent(eventId) && !eventHidden(eventId), "Tipo de cubo desconocido o quitado");
+    checkColor(color);
     need(!cubeNameTaken(name), `Ya tienes un cubo activo llamado "${name}"`);
     checkLubed(lubedAt);
     const rec = cleanCube({
@@ -191,6 +216,7 @@ export async function createStore(adapter = createMemoryAdapter(), { now = () =>
       eventId,
       notes,
       lubedAt,
+      color,
       active: true,
       createdAt: stamp(),
       retiredAt: null,
@@ -210,6 +236,10 @@ export async function createStore(adapter = createMemoryAdapter(), { now = () =>
       next.name = name;
     }
     if ("notes" in patch) next.notes = String(patch.notes ?? "").slice(0, 500);
+    if ("color" in patch) {
+      checkColor(patch.color ?? null);
+      next.color = patch.color ?? null;
+    }
     if ("lubedAt" in patch) {
       checkLubed(patch.lubedAt);
       next.lubedAt = patch.lubedAt;
@@ -241,9 +271,9 @@ export async function createStore(adapter = createMemoryAdapter(), { now = () =>
 
   const getCube = (id) => (data.cubes.has(id) ? copy(data.cubes.get(id)) : null);
 
-  function listCubes({ eventId = null, includeRetired = false } = {}) {
+  function listCubes({ eventId = null, includeRetired = false, includeHiddenTypes = false } = {}) {
     return [...data.cubes.values()]
-      .filter((c) => (includeRetired || c.active) && (!eventId || c.eventId === eventId))
+      .filter((c) => (includeRetired || c.active) && (includeHiddenTypes || !eventHidden(c.eventId)) && (!eventId || c.eventId === eventId))
       .sort((a, b) => eventOrder(a.eventId) - eventOrder(b.eventId) || a.name.localeCompare(b.name, "es"))
       .map(copy);
   }
@@ -534,9 +564,12 @@ export async function createStore(adapter = createMemoryAdapter(), { now = () =>
 
   return {
     // eventos
-    listEvents: () => allEvents().map(copy),
+    listEvents: ({ includeHidden = false } = {}) => allEvents().filter((e) => includeHidden || !e.hidden).map(copy),
     getEvent: (id) => (getEvent(id) ? copy(getEvent(id)) : null),
     addCustomEvent,
+    renameCustomEvent,
+    hideCustomEvent,
+    restoreCustomEvent,
     // cubos
     addCube,
     updateCube,

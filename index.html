@@ -8,18 +8,33 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="top">
-    <button id="menu" aria-label="Abrir estante">☰ Estante</button>
-    <span id="current"></span>
-  </header>
   <div id="app">
-    <aside id="panel" aria-label="Estante de cubos">
-      <div class="panel-head"><h1>Mi estante</h1><button id="close" aria-label="Cerrar estante">✕</button></div>
-      <div id="shelf"></div>
+    <aside id="left">
+      <section class="panel" id="cubePanel"></section>
+      <div class="tools">
+        <button id="gear" aria-label="Configuración" title="Configuración">⚙</button>
+        <div id="moon" aria-hidden="true"></div>
+      </div>
     </aside>
-    <div id="backdrop"></div>
-    <main id="view-timer"></main>
+    <main id="center">
+      <div id="bar"></div>
+      <div class="label">Mezcla</div>
+      <div id="scramble" aria-live="polite"></div>
+      <div id="stage">
+        <div class="stars" id="starsL" aria-hidden="true"></div>
+        <div id="pad" role="button" aria-label="Cronómetro: mantén y suelta para empezar"><div id="time">0,00</div></div>
+        <div class="stars" id="starsR" aria-hidden="true"></div>
+      </div>
+      <div id="actions"></div>
+      <div id="avgs"></div>
+    </main>
+    <aside id="right"><section class="panel" id="statsPanel"></section></aside>
+    <section id="shelfWrap">
+      <div class="label">Estantería</div>
+      <div id="shelf"></div>
+    </section>
   </div>
+  <dialog id="config"></dialog>
   <script type="module" src="main.js"></script>
 </body>
 </html>

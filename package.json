@@ -4,7 +4,7 @@
   "description": "Timer de cubos con estante, boss rush y una luna que te mira",
   "main": "index.js",
   "scripts": {
-    "test": "node --test scripts/test-store.mjs",
+    "test": "node --test scripts/test-store.mjs scripts/test-features.mjs",
     "test:scrambles": "node scripts/test-scrambles.mjs",
     "test:validity": "node scripts/test-validity.mjs",
     "test:store": "node --test scripts/test-store.mjs",
